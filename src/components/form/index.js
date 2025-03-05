@@ -14,29 +14,29 @@ const PickleballScheduler = () => {
   const [numCourts, setNumCourts] = useState(COURTS);
   const [totalGames, setTotalGames] = useState(TOTAL_GAMES);
 
-  const generateGames = () => {
+  const generateGames = async () => {
     let players = playerInput
       .split(",")
       .map((name) => name.trim())
       .filter((name) => name !== "");
-
+  
     if (players.length < numCourts * PLAYERS_PER_GAME) {
       alert("Not enough players to fill all courts!");
       return;
     }
-
-    let playerQueue = shuffle([...players]); // Ensures fairness
+  
+    let playerQueue = shuffle([...players]); 
     let gameAssignments = [];
-
+  
     for (let i = 0; i < totalGames; i++) {
       let gameRound = [];
-      let selectedPlayers = new Set(); // Track selected players to prevent duplicates
-
+      let selectedPlayers = new Set();
+  
       for (let j = 0; j < numCourts; j++) {
         if (playerQueue.length < PLAYERS_PER_GAME) {
-          playerQueue = shuffle([...players]); // Refresh player queue if needed
+          playerQueue = shuffle([...players]);
         }
-
+  
         let courtPlayers = [];
         while (courtPlayers.length < PLAYERS_PER_GAME && playerQueue.length > 0) {
           let player = playerQueue.shift();
@@ -45,18 +45,25 @@ const PickleballScheduler = () => {
             selectedPlayers.add(player);
           }
         }
-
         gameRound.push(courtPlayers);
       }
-
+  
       gameAssignments.push({ courts: gameRound });
-
-      // Rotate players so that those who played most recently go to the back of the queue
       playerQueue = [...playerQueue, ...shuffle([...selectedPlayers])];
     }
-
-    setGames(gameAssignments);
-  };
+  
+    const uniqueId = `match-${Date.now()}`;
+  
+    // ✅ Send match data to the API instead of localStorage
+    await fetch("/api/matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: uniqueId, games: gameAssignments }),
+    });
+  
+    // Redirect to match list
+    window.location.href = `/matches/${uniqueId}`;
+  };  
 
   const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 
