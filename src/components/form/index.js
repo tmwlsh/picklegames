@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Container from "../container";
+
+const JSONBIN_API_KEY = "$2a$10$Mhb3I4U5RlMV6i8O5taLO.Wol9NXkhN9tFY7NJd23bzI3t17d08Wi"; // Replace with your JSONBin API Key
+const JSONBIN_COLLECTION_ID = "67cf138b8561e97a50e9766e"; // Optional
 
 const PickleballScheduler = () => {
   const [playerInput, setPlayerInput] = useState("");
-  const [games, setGames] = useState([]);
-
-  const COURTS = 4;
-  const PLAYERS_PER_GAME = 4;
-  const TOTAL_GAMES = 6;
-
-  const [numCourts, setNumCourts] = useState(COURTS);
-  const [totalGames, setTotalGames] = useState(TOTAL_GAMES);
+  const [numCourts, setNumCourts] = useState(4);
+  const [totalGames, setTotalGames] = useState(6);
+  const router = useRouter();
 
   const generateGames = async () => {
     let players = playerInput
@@ -20,12 +19,12 @@ const PickleballScheduler = () => {
       .map((name) => name.trim())
       .filter((name) => name !== "");
   
-    if (players.length < numCourts * PLAYERS_PER_GAME) {
+    if (players.length < numCourts * 4) {
       alert("Not enough players to fill all courts!");
       return;
     }
   
-    let playerQueue = shuffle([...players]); 
+    let playerQueue = shuffle([...players]);
     let gameAssignments = [];
   
     for (let i = 0; i < totalGames; i++) {
@@ -33,12 +32,8 @@ const PickleballScheduler = () => {
       let selectedPlayers = new Set();
   
       for (let j = 0; j < numCourts; j++) {
-        if (playerQueue.length < PLAYERS_PER_GAME) {
-          playerQueue = shuffle([...players]);
-        }
-  
         let courtPlayers = [];
-        while (courtPlayers.length < PLAYERS_PER_GAME && playerQueue.length > 0) {
+        while (courtPlayers.length < 4 && playerQueue.length > 0) {
           let player = playerQueue.shift();
           if (!selectedPlayers.has(player)) {
             courtPlayers.push(player);
@@ -52,18 +47,40 @@ const PickleballScheduler = () => {
       playerQueue = [...playerQueue, ...shuffle([...selectedPlayers])];
     }
   
-    const uniqueId = `match-${Date.now()}`;
+    try {
+      console.log("Saving to JSONBin.io...");
+      const response = await fetch("https://api.jsonbin.io/v3/b", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Master-Key": JSONBIN_API_KEY,
+          "X-Bin-Private": "true", // Ensures the bin is private
+        },
+        body: JSON.stringify({ games: gameAssignments }),
+      });
+      
   
-    // ✅ Send match data to the API instead of localStorage
-    await fetch("/api/matches", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: uniqueId, games: gameAssignments }),
-    });
+      const responseText = await response.text(); // Get raw response
+      console.log("JSONBin.io Response:", responseText);
   
-    // Redirect to match list
-    window.location.href = `/matches/${uniqueId}`;
-  };  
+      if (!response.ok) {
+        throw new Error(`JSONBin.io error: ${response.status} - ${responseText}`);
+      }
+  
+      const data = JSON.parse(responseText);
+  
+      if (!data || !data.metadata || !data.metadata.id) {
+        throw new Error("Invalid response from JSONBin.io");
+      }
+  
+      const binId = data.metadata.id;
+      router.push(`/results/${binId}`);
+    } catch (error) {
+      console.error("Error saving games:", error);
+      alert(`Failed to save games: ${error.message}`);
+    }
+  };
+  
 
   const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 
@@ -87,7 +104,6 @@ const PickleballScheduler = () => {
               type="number"
               value={numCourts}
               onChange={(e) => setNumCourts(Number(e.target.value))}
-              placeholder="Number of courts"
               className="w-full p-3 border rounded mb-4"
             />
           </label>
@@ -97,7 +113,6 @@ const PickleballScheduler = () => {
               type="number"
               value={totalGames}
               onChange={(e) => setTotalGames(Number(e.target.value))}
-              placeholder="Total games"
               className="w-full p-3 border rounded mb-4"
             />
           </label>
@@ -108,31 +123,6 @@ const PickleballScheduler = () => {
         >
           Generate Games
         </button>
-
-        {games.length > 0 && (
-          <div className="mt-6">
-            {games.map((game, gameIndex) => (
-              <div key={gameIndex} className="mt-12">
-                <div className="text-left font-bold bg-gray-200 p-3 rounded border">
-                  Game {gameIndex + 1}
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                  {game.courts.map((court, courtIndex) => {
-                    return (
-                      <div
-                        key={courtIndex}
-                        className="border p-3 rounded bg-white shadow"
-                      >
-                        <p className="font-bold mb-1">Court {courtIndex + 1}</p>
-                        {court.join(", ")}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </Container>
     </div>
   );
