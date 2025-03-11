@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Container from "../container";
 
-const JSONBIN_API_KEY = "$2a$10$Mhb3I4U5RlMV6i8O5taLO.Wol9NXkhN9tFY7NJd23bzI3t17d08Wi"; // Replace with your JSONBin API Key
+const JSONBIN_API_KEY =
+  "$2a$10$Mhb3I4U5RlMV6i8O5taLO.Wol9NXkhN9tFY7NJd23bzI3t17d08Wi"; // Replace with your JSONBin API Key
 const JSONBIN_COLLECTION_ID = "67cf138b8561e97a50e9766e"; // Optional
 
 const PickleballScheduler = () => {
@@ -12,6 +13,8 @@ const PickleballScheduler = () => {
   const [numCourts, setNumCourts] = useState(4);
   const [totalGames, setTotalGames] = useState(6);
   const router = useRouter();
+
+  const JSONBIN_COLLECTION_ID = "67cf138b8561e97a50e9766e"; // Ensure this exists
 
   const generateGames = async () => {
     let players = playerInput
@@ -24,28 +27,38 @@ const PickleballScheduler = () => {
       return;
     }
   
-    let playerQueue = shuffle([...players]);
+    // Track how many times each player has played
+    let playCount = {};
+    players.forEach((player) => (playCount[player] = 0));
+  
     let gameAssignments = [];
   
     for (let i = 0; i < totalGames; i++) {
       let gameRound = [];
       let selectedPlayers = new Set();
   
+      // Sort players by how many games they have played (ascending order)
+      let sortedPlayers = [...players].sort((a, b) => playCount[a] - playCount[b]);
+  
       for (let j = 0; j < numCourts; j++) {
         let courtPlayers = [];
-        while (courtPlayers.length < 4 && playerQueue.length > 0) {
-          let player = playerQueue.shift();
+  
+        while (courtPlayers.length < 4 && sortedPlayers.length > 0) {
+          let player = sortedPlayers.shift(); // Pick the player with the least games
           if (!selectedPlayers.has(player)) {
             courtPlayers.push(player);
             selectedPlayers.add(player);
+            playCount[player]++; // Increment their game count
           }
         }
+  
         gameRound.push(courtPlayers);
       }
   
       gameAssignments.push({ courts: gameRound });
-      playerQueue = [...playerQueue, ...shuffle([...selectedPlayers])];
     }
+  
+    const timestamp = new Date().toISOString(); // Store date and time
   
     try {
       console.log("Saving to JSONBin.io...");
@@ -54,13 +67,17 @@ const PickleballScheduler = () => {
         headers: {
           "Content-Type": "application/json",
           "X-Master-Key": JSONBIN_API_KEY,
-          "X-Bin-Private": "true", // Ensures the bin is private
+          "X-Bin-Private": "false", // Allow it to be public for listing
+          "X-Collection-Id": JSONBIN_COLLECTION_ID, // Store in collection
         },
-        body: JSON.stringify({ games: gameAssignments }),
+        body: JSON.stringify({
+          createdAt: timestamp,
+          games: gameAssignments,
+          playCount: playCount, // Save play count along with games
+        }),
       });
-      
   
-      const responseText = await response.text(); // Get raw response
+      const responseText = await response.text();
       console.log("JSONBin.io Response:", responseText);
   
       if (!response.ok) {
@@ -80,7 +97,6 @@ const PickleballScheduler = () => {
       alert(`Failed to save games: ${error.message}`);
     }
   };
-  
 
   const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Container from "@/components/container";
+import React from "react";
 
 const JSONBIN_API_KEY = "$2a$10$Mhb3I4U5RlMV6i8O5taLO.Wol9NXkhN9tFY7NJd23bzI3t17d08Wi"; // Replace with your JSONBin API Key
 
 const ResultsPage = ({ params }) => {
-  const { id } = params; // Get bin ID from URL
+  const { id } = React.use(params); // Unwrap params to access id
   const [games, setGames] = useState([]);
+  const [playCount, setPlayCount] = useState({});
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -33,11 +35,12 @@ const ResultsPage = ({ params }) => {
         const data = await response.json();
         console.log("Fetched data:", data);
 
-        if (!data || !data.record || !data.record.games) {
+        if (!data || !data.record || !data.record.games || !data.record.playCount) {
           throw new Error("Invalid JSON structure from JSONBin.io");
         }
 
         setGames(data.record.games);
+        setPlayCount(data.record.playCount);
         setLoading(false);
       } catch (error) {
         console.error("Error loading games:", error);
@@ -72,7 +75,14 @@ const ResultsPage = ({ params }) => {
                   {game.courts.map((court, courtIndex) => (
                     <div key={courtIndex} className="border p-3 rounded bg-white shadow">
                       <p className="font-bold mb-1">Court {courtIndex + 1}</p>
-                      {court.join(", ")}
+                      {court.map((player) => (
+                        <p key={player}>
+                          {player}{" "}
+                          <span className="text-gray-500 text-sm">
+                            ({playCount[player] || 0} games)
+                          </span>
+                        </p>
+                      ))}
                     </div>
                   ))}
                 </div>
