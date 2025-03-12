@@ -32,19 +32,21 @@ const PickleballScheduler = () => {
     players.forEach((player) => (playCount[player] = 0));
   
     let gameAssignments = [];
+    let playerQueue = [...players]; // Copy player list
   
     for (let i = 0; i < totalGames; i++) {
       let gameRound = [];
       let selectedPlayers = new Set();
   
-      // Sort players by how many games they have played (ascending order)
-      let sortedPlayers = [...players].sort((a, b) => playCount[a] - playCount[b]);
+      // Sort players by fewest games played, then shuffle for variety
+      let sortedPlayers = [...playerQueue].sort((a, b) => playCount[a] - playCount[b]);
+      sortedPlayers = shuffle(sortedPlayers); // Shuffle within fairness constraints
   
       for (let j = 0; j < numCourts; j++) {
         let courtPlayers = [];
   
         while (courtPlayers.length < 4 && sortedPlayers.length > 0) {
-          let player = sortedPlayers.shift(); // Pick the player with the least games
+          let player = sortedPlayers.shift(); // Pick the player with the least games (shuffled)
           if (!selectedPlayers.has(player)) {
             courtPlayers.push(player);
             selectedPlayers.add(player);
@@ -56,6 +58,9 @@ const PickleballScheduler = () => {
       }
   
       gameAssignments.push({ courts: gameRound });
+  
+      // 🔄 **Rotate Players to Mix Matchups**
+      playerQueue = [...playerQueue.slice(1), playerQueue[0]]; // Rotate first player to the end
     }
   
     const timestamp = new Date().toISOString(); // Store date and time
@@ -67,13 +72,13 @@ const PickleballScheduler = () => {
         headers: {
           "Content-Type": "application/json",
           "X-Master-Key": JSONBIN_API_KEY,
-          "X-Bin-Private": "false", // Allow it to be public for listing
-          "X-Collection-Id": JSONBIN_COLLECTION_ID, // Store in collection
+          "X-Bin-Private": "false",
+          "X-Collection-Id": JSONBIN_COLLECTION_ID,
         },
         body: JSON.stringify({
           createdAt: timestamp,
           games: gameAssignments,
-          playCount: playCount, // Save play count along with games
+          playCount: playCount,
         }),
       });
   
@@ -85,7 +90,6 @@ const PickleballScheduler = () => {
       }
   
       const data = JSON.parse(responseText);
-  
       if (!data || !data.metadata || !data.metadata.id) {
         throw new Error("Invalid response from JSONBin.io");
       }
@@ -97,8 +101,11 @@ const PickleballScheduler = () => {
       alert(`Failed to save games: ${error.message}`);
     }
   };
-
-  const shuffle = (array) => array.sort(() => Math.random() - 0.5);
+  
+  // 🔀 **Helper Function: Shuffle Array**
+  const shuffle = (array) => {
+    return array.sort(() => Math.random() - 0.5);
+  };
 
   return (
     <div className="py-10">
