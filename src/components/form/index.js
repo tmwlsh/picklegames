@@ -27,43 +27,46 @@ const PickleballScheduler = () => {
       return;
     }
   
-    // Track how many times each player has played
+    // Initialize play count
     let playCount = {};
     players.forEach((player) => (playCount[player] = 0));
   
     let gameAssignments = [];
-    let playerQueue = [...players]; // Copy player list
+    let playerQueue = [...players];
   
     for (let i = 0; i < totalGames; i++) {
       let gameRound = [];
       let selectedPlayers = new Set();
   
-      // Sort players by fewest games played, then shuffle for variety
-      let sortedPlayers = [...playerQueue].sort((a, b) => playCount[a] - playCount[b]);
-      sortedPlayers = shuffle(sortedPlayers); // Shuffle within fairness constraints
+      // **Sort players by games played, then shuffle within tiers**
+      let sortedPlayers = [...players].sort((a, b) => playCount[a] - playCount[b]);
+      sortedPlayers = shuffleWithinTiers(sortedPlayers, playCount);
   
       for (let j = 0; j < numCourts; j++) {
         let courtPlayers = [];
   
         while (courtPlayers.length < 4 && sortedPlayers.length > 0) {
-          let player = sortedPlayers.shift(); // Pick the player with the least games (shuffled)
+          let player = sortedPlayers.shift(); 
           if (!selectedPlayers.has(player)) {
             courtPlayers.push(player);
             selectedPlayers.add(player);
-            playCount[player]++; // Increment their game count
+            playCount[player]++; // Increment play count
           }
         }
   
         gameRound.push(courtPlayers);
       }
   
-      gameAssignments.push({ courts: gameRound });
+      // Identify players **not** playing in this game
+      let benchPlayers = players.filter((p) => !selectedPlayers.has(p));
   
-      // 🔄 **Rotate Players to Mix Matchups**
-      playerQueue = [...playerQueue.slice(1), playerQueue[0]]; // Rotate first player to the end
+      gameAssignments.push({ courts: gameRound, bench: benchPlayers });
+  
+      // 🔄 **Rotate Players to Even Out Matchups**
+      playerQueue.push(playerQueue.shift()); // Move first player to the end
     }
   
-    const timestamp = new Date().toISOString(); // Store date and time
+    const timestamp = new Date().toISOString();
   
     try {
       console.log("Saving to JSONBin.io...");
@@ -102,10 +105,30 @@ const PickleballScheduler = () => {
     }
   };
   
+  // 🔀 **Helper Function: Shuffle Players Within Play Count Tiers**
+  const shuffleWithinTiers = (players, playCount) => {
+    let groups = {};
+    players.forEach((player) => {
+      let count = playCount[player];
+      if (!groups[count]) groups[count] = [];
+      groups[count].push(player);
+    });
+  
+    let shuffledPlayers = [];
+    Object.keys(groups)
+      .sort((a, b) => a - b) // Sort by least games played
+      .forEach((tier) => {
+        shuffledPlayers.push(...shuffle(groups[tier])); // Shuffle within groups
+      });
+  
+    return shuffledPlayers;
+  };
+  
   // 🔀 **Helper Function: Shuffle Array**
   const shuffle = (array) => {
     return array.sort(() => Math.random() - 0.5);
   };
+  
 
   return (
     <div className="py-10">

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import Container from "@/components/container";
 import React from "react";
 
-const JSONBIN_API_KEY = "$2a$10$Mhb3I4U5RlMV6i8O5taLO.Wol9NXkhN9tFY7NJd23bzI3t17d08Wi"; // Replace with your JSONBin API Key
+const JSONBIN_API_KEY = "$2a$10$Mhb3I4U5RlMV6i8O5taLO.Wol9NXkhN9tFY7NJd23bzI3t17d08Wi";
 
 const ResultsPage = ({ params }) => {
-  const { id } = React.use(params); // Unwrap params to access id
+  const { id } = React.use(params); // Use React.use to unwrap params
   const [games, setGames] = useState([]);
   const [playCount, setPlayCount] = useState({});
   const [loading, setLoading] = useState(true);
@@ -66,28 +66,39 @@ const ResultsPage = ({ params }) => {
           <p>Loading games...</p>
         ) : games.length > 0 ? (
           <div>
-            {games.map((game, gameIndex) => (
-              <div key={gameIndex} className="mt-12">
-                <div className="text-left font-bold bg-gray-200 p-3 rounded border">
-                  Game {gameIndex + 1}
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                  {game.courts.map((court, courtIndex) => (
-                    <div key={courtIndex} className="border p-3 rounded bg-white shadow">
-                      <p className="font-bold mb-1">Court {courtIndex + 1}</p>
-                      {court.map((player) => (
-                        <p key={player}>
-                          {player}{" "}
-                          <span className="text-gray-500 text-sm">
-                            ({playCount[player] || 0} games)
-                          </span>
-                        </p>
-                      ))}
+            {games.map((game, gameIndex) => {
+              console.log('game', game);
+              return (
+                <div key={gameIndex} className="mt-12">
+                  <div className="text-left font-bold bg-gray-200 p-3 rounded border">
+                    Game {gameIndex + 1}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                    {game.courts.map((court, courtIndex) => (
+                      <div key={courtIndex} className="border p-3 rounded bg-white shadow">
+                        <p className="font-bold mb-1">Court {courtIndex + 1}</p>
+                        {court.map((player) => (
+                          <p key={player}>
+                            {player}{" "}
+                            <span className="text-gray-500 text-sm">
+                              ({playCount[player] || 0} games)
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 🔹 Show Players Not Playing in This Game */}
+                  {game.bench && game.bench.length > 0 && (
+                    <div className="mt-4 p-3 border bg-red-100 rounded flex items-center">
+                      <p className="font-bold">Players Not in This Game:</p>
+                      <p className="ml-2">{game.bench.join(", ")}</p>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <p>No games found.</p>
